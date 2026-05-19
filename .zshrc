@@ -305,4 +305,36 @@ alias pentest-sync-auto='~/.local/pentest-coach-sync/sync-helper.sh --auto'
 # ─────────────────────────────────────────────────────────────────
 alias dotfiles='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
 
-source ~/.ip
+# `dotfiles-help` — quick reference for the bare-repo workflow.
+# Reminder of the common verbs without leaving the terminal.
+dotfiles-help() {
+    cat <<'EOF'
+Dotfiles bare-repo workflow
+  Remote:  git@github.com:theo2612/dotfiles.git
+  Local:   ~/.dotfiles  (bare repo, work tree = $HOME)
+
+Common commands (all via the `dotfiles` alias):
+  dotfiles status               # show modified tracked files
+  dotfiles diff [~/.zshrc]      # show pending changes
+  dotfiles add ~/.zshrc         # stage an edit
+  dotfiles add ~/.config/...    # start tracking a new file
+  dotfiles commit -m "tweak"    # commit
+  dotfiles push                 # sync to GitHub
+  dotfiles pull                 # pull from GitHub (other machine made changes)
+  dotfiles log --oneline        # history
+  dotfiles ls-files             # list everything currently tracked
+  dotfiles rm --cached <file>   # stop tracking (keeps the file in $HOME)
+
+Notes:
+  - Untracked files in $HOME are intentionally hidden from `status`
+    (status.showUntrackedFiles=no). Use `dotfiles add <path>` explicitly
+    to start tracking a new file.
+  - Conflicting files at fresh-install time are moved to
+    ~/.pre-dotfiles-backup/ by scripts/07-configs.sh in kali-rebuild-personal.
+EOF
+}
+
+# Per-target HTB box IP. The file is intentionally NOT tracked in the
+# dotfiles repo, so this guard prevents shell-startup errors on machines
+# that have not (yet) set $IP for a specific box.
+[ -f ~/.ip ] && source ~/.ip
