@@ -1,0 +1,30 @@
+#!/bin/sh
+set -eu
+
+if [ $# -lt 1 ]; then
+  exit 0
+fi
+
+if [ "$1" = "--session" ]; then
+  sess="${2:-}"
+  [ -n "$sess" ] || exit 0
+  tmux list-panes -t "$sess" -F "#{pane_id}" | while read -r p; do
+    "$0" "$p"
+  done
+  exit 0
+fi
+
+pane="$1"
+
+sess="$(tmux display-message -p -t "$pane" '#S')"
+win_idx="$(tmux display-message -p -t "$pane" '#I')"
+win_name="$(tmux display-message -p -t "$pane" '#W')"
+root="$("$HOME/.local/bin/ctf-log-root" "$sess")/logs"
+
+mkdir -p "$root"
+
+wname_sane=$(printf '%s' "$win_name" | tr ' /' '__')
+logfile="$root/out.log"
+
+# Prefix each output line with timestamp + window + pane to reduce interleaving confusion.
+tmux pipe-pane -o -t "$pane" "$HOME/.local/bin/htb-tmux-prefix \"$logfile\" \"${win_idx}:${wname_sane}\" \"$pane\""

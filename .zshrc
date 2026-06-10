@@ -260,7 +260,7 @@ _htb_cmd_log() {
     local sess
     sess="$(tmux display-message -p '#S' 2>/dev/null)"
     [ -n "$sess" ] || return 0
-    local log_dir="$HOME/Documents/obsidian/docs/CTF/HTB/${sess}/logs"
+    local log_dir="$(ctf-log-root "$sess")/logs"
     mkdir -p "$log_dir"
     local ts
     ts="$(date '+%Y-%m-%d %H:%M:%S')"

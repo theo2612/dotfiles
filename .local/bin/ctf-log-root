@@ -1,0 +1,15 @@
+#!/bin/sh
+# Print the notes/log root for a tmux session, based on its name.
+# Public  -> docs/    (published to forge.b7h30.com)
+# Private -> hidden/  (never published)
+#
+# Add private categories by adding a prefix case below.
+sess="${1:-}"
+[ -n "$sess" ] || exit 0
+base="$HOME/Documents/obsidian"
+
+case "$sess" in
+  offsec-*)   printf '%s\n' "$base/hidden/CTF/offsec/${sess#offsec-}" ;;
+  seasonal-*) printf '%s\n' "$base/hidden/CTF/HTB - seasonal/${sess#seasonal-}" ;;
+  *)          printf '%s\n' "$base/docs/CTF/HTB/$sess" ;;
+esac
