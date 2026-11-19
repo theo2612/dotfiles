@@ -5,7 +5,7 @@ Personal Kali dotfiles, managed as a bare git repository so the files in
 
 - **Bare repo:**     `~/.dotfiles`
 - **Work tree:**     `$HOME`
-- **Remote:**        `git@github.com:theo2612/dotfiles.git` (private, SSH)
+- **Remote:**        `git@github.com:theo2612/dotfiles.git`
 - **Bootstrap:**     [`theo2612/kali-rebuild-personal`](https://github.com/theo2612/kali-rebuild-personal) (`scripts/07-configs.sh`)
 
 ## Currently tracked
