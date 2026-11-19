@@ -303,7 +303,7 @@ Notes:
     (status.showUntrackedFiles=no). Use `dotfiles add <path>` explicitly
     to start tracking a new file.
   - Conflicting files at fresh-install time are moved to
-    ~/.pre-dotfiles-backup/ by scripts/07-configs.sh in kali-rebuild-personal.
+    ~/.pre-dotfiles-backup/ by scripts/07-configs.sh in kali-rebuild.
 EOF
 }
 

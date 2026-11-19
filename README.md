@@ -6,7 +6,7 @@ Personal Kali dotfiles, managed as a bare git repository so the files in
 - **Bare repo:**     `~/.dotfiles`
 - **Work tree:**     `$HOME`
 - **Remote:**        `git@github.com:theo2612/dotfiles.git`
-- **Bootstrap:**     [`theo2612/kali-rebuild-personal`](https://github.com/theo2612/kali-rebuild-personal) (`scripts/07-configs.sh`)
+- **Bootstrap:**     Kali: [`theo2612/kali-rebuild`](https://github.com/theo2612/kali-rebuild) (`scripts/07-configs.sh`). Other machines: see below.
 
 ## Currently tracked
 
@@ -64,16 +64,29 @@ The same reference is available in any shell via `dotfiles-help`
 
 ## Fresh-install bootstrap
 
-On a fresh Kali box, after adding an SSH key to GitHub:
+**Kali:** run kali-rebuild; `scripts/07-configs.sh` installs these dotfiles.
 
 ```bash
-git clone git@github.com:theo2612/kali-rebuild-personal.git ~/kali-rebuild-personal
-cd ~/kali-rebuild-personal && sudo ./install.sh
+git clone https://github.com/theo2612/kali-rebuild.git ~/kali-rebuild
+cd ~/kali-rebuild && sudo ./install.sh
 ```
 
-`scripts/07-configs.sh` clones this repo to `~/.dotfiles`, sets
-`status.showUntrackedFiles=no`, and checks files out into `$HOME`. Any
-pre-existing conflicting files are moved to `~/.pre-dotfiles-backup/`.
+**Any other machine** (e.g. Ubuntu), same steps by hand:
+
+```bash
+git clone --bare https://github.com/theo2612/dotfiles.git ~/.dotfiles
+alias dotfiles='git --git-dir=$HOME/.dotfiles --work-tree=$HOME'
+dotfiles config status.showUntrackedFiles no
+dotfiles config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+dotfiles fetch origin
+dotfiles branch --set-upstream-to=origin/main main
+dotfiles checkout
+```
+
+If `checkout` refuses because files already exist (e.g. `~/.gitconfig`),
+move the listed files into `~/.pre-dotfiles-backup/` and run it again.
+After adding an SSH key to GitHub, switch to SSH so you can push:
+`dotfiles remote set-url origin git@github.com:theo2612/dotfiles.git`
 
 ## Notes
 
