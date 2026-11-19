@@ -1,0 +1,34 @@
+#!/bin/sh
+# Start piping a tmux pane's output through tmux-log-filter into out.log.
+#
+# Usage: tmux-log-start <pane-id>
+#        tmux-log-start --session <session-name>   (every pane in the session)
+#
+# Called by the hooks in ~/.tmux.conf on every new window/split/session.
+# Does nothing unless logging is toggled on (flag file ~/.tmux-logging).
+set -eu
+
+[ -e "$HOME/.tmux-logging" ] || exit 0
+[ $# -ge 1 ] || exit 0
+
+if [ "$1" = "--session" ]; then
+  sess="${2:-}"
+  [ -n "$sess" ] || exit 0
+  tmux list-panes -s -t "$sess" -F '#{pane_id}' | while read -r p; do
+    "$0" "$p"
+  done
+  exit 0
+fi
+
+pane="$1"
+
+sess=$(tmux display-message -p -t "$pane" '#S' | tr ' /' '__')
+win_idx=$(tmux display-message -p -t "$pane" '#I')
+win_name=$(tmux display-message -p -t "$pane" '#W' | tr ' /' '__')
+
+dir="${TMUX_LOG_ROOT:-$HOME/LOGS}/$sess"
+mkdir -p "$dir"
+
+# -o: only start a pipe if this pane doesn't already have one
+tmux pipe-pane -o -t "$pane" \
+  "\"$HOME/.local/bin/tmux-log-filter\" \"$dir/out.log\" \"${win_idx}:${win_name}\" \"$pane\""

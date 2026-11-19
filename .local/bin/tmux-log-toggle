@@ -1,0 +1,39 @@
+#!/bin/sh
+# Toggle tmux-logging (cmd.log + out.log) on or off.
+#
+# The flag file ~/.tmux-logging is the single on/off switch:
+#   present -> on    absent -> off
+# It is machine-wide: turning it on in one session also applies to new
+# panes in your other sessions.
+#
+# Usage: tmux-log-toggle [pane-id]     (bound to `prefix C-l`)
+#        tmux-log-toggle --status
+
+FLAG="$HOME/.tmux-logging"
+START="$HOME/.local/bin/tmux-log-start"
+
+if [ "${1:-}" = "--status" ]; then
+  if [ -e "$FLAG" ]; then echo "tmux-logging: ON"; else echo "tmux-logging: OFF"; fi
+  exit 0
+fi
+
+pane="${1:-}"
+if [ -n "$pane" ]; then
+  sess=$(tmux display-message -p -t "$pane" '#S' 2>/dev/null) || exit 0
+else
+  sess=$(tmux display-message -p '#S' 2>/dev/null) || exit 0
+fi
+[ -n "$sess" ] || exit 0
+
+if [ -e "$FLAG" ]; then
+  rm -f "$FLAG"
+  tmux list-panes -s -t "$sess" -F '#{pane_id}' 2>/dev/null | while read -r p; do
+    tmux pipe-pane -t "$p" 2>/dev/null
+  done
+  tmux display-message "tmux-logging OFF ($sess)"
+else
+  touch "$FLAG"
+  [ -x "$START" ] && "$START" --session "$sess"
+  safe=$(printf '%s' "$sess" | tr ' /' '__')
+  tmux display-message "tmux-logging ON -> ${TMUX_LOG_ROOT:-$HOME/LOGS}/$safe/"
+fi

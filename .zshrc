@@ -252,38 +252,9 @@ if [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]; then
     ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#999'
 fi
 
-# HTB command logging - only on Kali attack boxes
-if [ -f /etc/kali-release ]; then
-	autoload -Uz add-zsh-hook
-	_htb_cmd_log() {
-	    # Only log when running inside tmux (session name becomes the machine name).
-	    [ -n "$TMUX" ] || return 0
-	    local sess
-	    sess="$(tmux display-message -p '#S' 2>/dev/null)"
-	    [ -n "$sess" ] || return 0
-	    local log_dir="$(ctf-log-root "$sess")/logs"
-	    mkdir -p "$log_dir"
-	    local ts
-	    ts="$(date '+%Y-%m-%d %H:%M:%S')"
-	    local pane="${TMUX_PANE:-no-tmux}"
-	    local cmd="$1"
-	    # Normalize "note ..." into a no-op command that still records a clean #note line.
-	    if [[ "$cmd" == note\ * ]]; then
-		cmd=": #note ${cmd#note }"
-	    elif [[ "$cmd" == n\ * ]]; then
-		cmd=": #note ${cmd#n }"
-	    fi
-	    # Write to cmd.log (clean command timeline)
-	    print -r -- "[$ts] [pane=$pane] [CMD] $cmd" >> "$log_dir/cmd.log"
-	    # Write command boundary marker to out.log (helps correlate output to commands)
-	    print -r -- "[$ts] [pane=$pane] [CMD_START] $cmd" >> "$log_dir/out.log"
-	}
-	add-zsh-hook preexec _htb_cmd_log
+# tmux-logging: logs commands to ~/LOGS/<session>/cmd.log (toggle: prefix C-l)
+[ -f ~/.config/tmux-logging/log.zsh ] && source ~/.config/tmux-logging/log.zsh
 
-	# Quick no-op notes that still land cleanly in cmd.log.
-	alias note=': #note'
-	alias n=': #note'
-fi
 # enable command-not-found if installed
 if [ -f /etc/zsh_command_not_found ]; then
     . /etc/zsh_command_not_found

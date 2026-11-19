@@ -10,14 +10,31 @@ Personal Kali dotfiles, managed as a bare git repository so the files in
 
 ## Currently tracked
 
-| File           | Purpose                                                    |
-| -------------- | ---------------------------------------------------------- |
-| `.zshrc`       | Shell config, HTB command-logging hook, aliases, functions |
-| `.tmux.conf`   | tmux config: ctrl-a prefix, pane splits, pipe-pane logging |
-| `.p10k.zsh`    | powerlevel10k prompt config                                |
-| `.gitconfig`   | git identity                                               |
-| `.zprofile`    | zsh login-shell init                                       |
-| `README.md`    | this file                                                  |
+| File                                  | Purpose                                              |
+| ------------------------------------- | ---------------------------------------------------- |
+| `.zshrc`                              | Kali shell config, aliases, functions                |
+| `.tmux.conf`                          | tmux config: ctrl-a prefix, splits, status bar, logging hooks |
+| `.gitconfig`                          | git identity                                         |
+| `.zprofile`                           | zsh login-shell init                                 |
+| `.config/tmux-logging/log.zsh`        | zsh command hook -> cmd.log                          |
+| `.config/tmux-logging/log.bash`       | bash command hook -> cmd.log (source last in .bashrc)|
+| `.local/bin/tmux-log-start`           | starts piping a pane into out.log                    |
+| `.local/bin/tmux-log-filter`          | strips ANSI/prompts/noise from pane output           |
+| `.local/bin/tmux-log-toggle`          | on/off switch (`prefix C-l`)                         |
+| `.local/bin/tmux-status-target`       | Target/VPN in status bar, only when present          |
+| `README.md`                           | this file                                            |
+
+## tmux-logging
+
+Same files on Kali (zsh) and Ubuntu (bash). Off by default.
+
+1. `tmux new -s <box-name>`
+2. `C-a C-l` to turn logging on (status bar shows LOG ON)
+3. Logs go to `~/LOGS/<box-name>/cmd.log` and `out.log`
+4. `note <text>` or `n <text>` drops a note into cmd.log
+
+Status bar shows `Target:` only when `~/.ip` exists (`export IP=10.10.11.45`)
+and `VPN:` only when a `tun0` interface is up.
 
 Intentionally **not** tracked:
 - `~/.ip` — per-target HTB box IP (changes every box)

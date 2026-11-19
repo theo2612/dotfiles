@@ -1,0 +1,16 @@
+#!/bin/sh
+# Prints "Target: <ip> | VPN: <ip> | " for the tmux status bar.
+# Each part only appears when it exists, so this prints nothing on
+# machines without ~/.ip and without a tun0 interface.
+
+out=""
+
+if [ -f "$HOME/.ip" ]; then
+  target=$(awk -F'=' '/^export IP=/ {print $2}' "$HOME/.ip" | tail -n 1 | tr -d "\"'")
+  [ -n "$target" ] && out="Target: $target | "
+fi
+
+vpn=$(ip -4 addr show tun0 2>/dev/null | awk '/inet / {split($2, a, "/"); print a[1]}')
+[ -n "$vpn" ] && out="${out}VPN: $vpn | "
+
+printf '%s' "$out"
