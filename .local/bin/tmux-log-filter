@@ -7,7 +7,9 @@ the log file given as argv[1]. Filters:
   1. ANSI escape codes
   2. Shell prompt lines (bash, Kali zsh, PowerShell, Evil-WinRM, SQL)
   3. Empty / whitespace-only lines
-  4. Rapid repeats within 0.5s (autocomplete redraw spam)
+  4. Command-line editing redraws (any screen line that contains a prompt)
+
+Indentation is preserved. Output lines are never de-duplicated.
 
 Usage (from tmux-log-start): tmux-log-filter <logfile> <window> <pane>
 """
@@ -29,13 +31,21 @@ except OSError:
     sys.exit(0)
 
 # Decode leniently so binary output (e.g. cat on a binary) can't crash the filter
-stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8", errors="replace")
+# newline="" keeps \r and \n distinct; the default would turn every \r into \n
+stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf-8", errors="replace",
+                         newline="")
 
 # Looked up at runtime so the same file works for btheo, brad-theodore, b7h30
 USER = re.escape(getpass.getuser())
 HOST = re.escape(socket.gethostname())
 
-ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[()][AB012]|\x1b.')
+ANSI_ESCAPE = re.compile(
+    r'\x1b\[[0-?]*[ -/]*[@-~]'             # CSI (final byte is any of @-~, not just letters)
+    r'|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)'  # OSC, ended by BEL or ST
+    r'|\x1b[()][AB012]'                    # charset selection
+    r'|\x1b.'                              # any other two-byte escape
+    r'|[\x00-\x08\x0b-\x1f\x7f]'           # leftover control chars (tab is kept)
+)
 
 PROMPT_PATTERNS = [
     # This machine's user + host, with @ (bash, Kali backtrack) or ㉿ (Kali two-line)
@@ -44,6 +54,8 @@ PROMPT_PATTERNS = [
     re.compile(r'^\s*[┌└]─'),
     # Generic user@host:path$ prompt (e.g. on a box you've SSH'd into)
     re.compile(r'^\s*[\w.-]+@[\w.-]+:\S*[$#]'),
+    # RHEL-style [user@host dir]$ prompt
+    re.compile(r'^\s*\[[\w.-]+@[\w.-]+ [^\]]*\][$#]'),
     # Evil-WinRM
     re.compile(r'\*Evil-WinRM\*\s*PS\s+'),
     # PowerShell
@@ -56,44 +68,63 @@ PROMPT_PATTERNS = [
     re.compile(r'^\s*[$#]\s*$'),
 ]
 
-DEBOUNCE_WINDOW = 0.5
-MAX_RECENT = 10
-recent = []  # (line, timestamp)
+MAX_LINE = 65536  # force a flush if a program never sends a newline
 
 
 def is_prompt(line):
     return any(p.search(line) for p in PROMPT_PATTERNS)
 
 
-def is_recent_repeat(line, now):
-    """True if line repeats (or is a prefix of) something seen in the last 0.5s."""
-    global recent
-    recent = [(l, t) for l, t in recent if now - t < DEBOUNCE_WINDOW]
-    for prev, _ in recent:
-        if line == prev or (prev.startswith(line) and len(line) < len(prev)):
-            return True
-    recent.append((line, now))
-    if len(recent) > MAX_RECENT:
-        recent.pop(0)
-    return False
-
+# Shells with bracketed paste (bash 5.1+, zsh, most readline programs) send
+# ESC[?2004h when they start waiting for you to type and ESC[?2004l when you
+# press Enter. Everything in between is command-line editing, not output.
+PASTE_MODE = re.compile(r'(\x1b\[\?2004[hl])')
+editing = False
 
 buf = []
 
 
+def drop_editing(raw):
+    """Remove the parts of raw that were typed at a prompt."""
+    global editing
+    kept = []
+    for part in PASTE_MODE.split(raw):
+        if part == "\x1b[?2004h":
+            editing = True
+        elif part == "\x1b[?2004l":
+            editing = False
+        elif not editing:
+            kept.append(part)
+    return "".join(kept)
+
+
 def flush():
+    """Log one screen line (everything up to a newline).
+
+    First, anything typed at a prompt is removed (see PASTE_MODE). For
+    shells that don't send those markers, the prompt patterns below are
+    the fallback.
+
+    A carriage return (\\r) moves the cursor back to column 0 without
+    starting a new line, so the pieces between \\r's are redraws of the
+    SAME screen line. Two cases:
+      - any piece is a shell prompt -> the whole line is you typing/editing
+        a command (readline redraws); drop it. cmd.log has the command.
+      - otherwise it is program output (e.g. a progress bar); keep only the
+        last piece, which is what was left on screen.
+    Real output lines are never dropped for repeating an earlier line.
+    """
     global buf
     if not buf:
         return
-    line = ANSI_ESCAPE.sub('', "".join(buf)).strip()
+    raw = drop_editing("".join(buf))
     buf = []
-    if not line or is_prompt(line):
-        return
-    now = time.time()
-    if is_recent_repeat(line, now):
+    pieces = [ANSI_ESCAPE.sub('', p).rstrip() for p in raw.split("\r")]
+    pieces = [p for p in pieces if p.strip()]
+    if not pieces or any(is_prompt(p) for p in pieces):
         return
     ts = time.strftime("[%Y-%m-%d %H:%M:%S]")
-    out.write(f"{ts} [w={win}] [p={pane}] [OUT] {line}\n")
+    out.write(f"{ts} [w={win}] [p={pane}] [OUT] {pieces[-1]}\n")
     out.flush()
 
 
@@ -102,10 +133,12 @@ try:
         ch = stdin.read(1)
         if ch == "":
             break
-        if ch in ("\n", "\r"):
+        if ch == "\n":
             flush()
         else:
             buf.append(ch)
+            if len(buf) >= MAX_LINE:
+                flush()
 finally:
     flush()
     out.close()
